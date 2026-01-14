@@ -138,6 +138,21 @@ def main():
 
     logger.info(f"Loaded models for {len(orchestrator.models)} coins")
 
+    # Send startup notification
+    if orchestrator.notifier.enabled:
+        orchestrator.notifier.send_startup_notification(
+            config={
+                "mode": "Paper Trading",
+                "initial_capital": trading_config.initial_capital,
+                "max_position_pct": trading_config.max_position_pct,
+                "max_total_exposure": trading_config.max_total_exposure,
+                "max_drawdown_pct": trading_config.max_drawdown_pct,
+            },
+            num_models=len(orchestrator.models),
+            num_coins=summary["tradeable_coins"]
+        )
+        logger.info("Startup notification sent to Discord")
+
     # Check for continuous mode vs single run
     continuous_mode = "--continuous" in sys.argv
 
@@ -189,9 +204,22 @@ def main():
 
 
 if __name__ == "__main__":
+    # Track notifier for shutdown notification
+    _notifier = None
+
     try:
+        # Initialize notifier early for shutdown handling
+        discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "")
+        if discord_webhook:
+            from utils.notifications import DiscordNotifier
+            _notifier = DiscordNotifier(discord_webhook)
+
         main()
     except KeyboardInterrupt:
         logger.info("\nTrading stopped by user")
+        if _notifier and _notifier.enabled:
+            _notifier.send_shutdown_notification("Manual shutdown (Ctrl+C)")
     except Exception as e:
         logger.exception(f"Unexpected error: {e}")
+        if _notifier and _notifier.enabled:
+            _notifier.send_shutdown_notification(f"Error: {str(e)[:100]}")

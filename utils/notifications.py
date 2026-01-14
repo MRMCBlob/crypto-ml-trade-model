@@ -329,6 +329,66 @@ class DiscordNotifier:
 
         return self._send_webhook(payload)
 
+    def send_startup_notification(
+        self,
+        config: Dict[str, Any],
+        num_models: int,
+        num_coins: int
+    ) -> bool:
+        """
+        Send notification when the trading bot starts.
+
+        Args:
+            config: Trading configuration details
+            num_models: Number of loaded ML models
+            num_coins: Number of tradeable coins
+        """
+        embed = {
+            "title": "🚀 Crypto ML Trading Bot Started",
+            "description": "The trading system is now online and monitoring the markets.",
+            "color": 0x00BFFF,  # Deep sky blue
+            "timestamp": datetime.utcnow().isoformat(),
+            "fields": [
+                {"name": "Mode", "value": config.get("mode", "Paper Trading"), "inline": True},
+                {"name": "Initial Capital", "value": f"${config.get('initial_capital', 10000):,.2f}", "inline": True},
+                {"name": "Models Loaded", "value": str(num_models), "inline": True},
+                {"name": "Coins Tracked", "value": str(num_coins), "inline": True},
+                {"name": "Max Position", "value": f"{config.get('max_position_pct', 0.2):.0%}", "inline": True},
+                {"name": "Max Exposure", "value": f"{config.get('max_total_exposure', 0.8):.0%}", "inline": True},
+                {"name": "Max Drawdown", "value": f"{config.get('max_drawdown_pct', 0.15):.0%}", "inline": True},
+                {"name": "Report Interval", "value": "Every 12 hours", "inline": True},
+            ],
+            "footer": {"text": "Crypto ML Trading Bot | Paper Trading Mode"}
+        }
+
+        payload = {
+            "username": "Crypto ML Trader",
+            "avatar_url": "https://i.imgur.com/4M34hi2.png",
+            "embeds": [embed]
+        }
+
+        return self._send_webhook(payload)
+
+    def send_shutdown_notification(self, reason: str = "Manual shutdown") -> bool:
+        """Send notification when the trading bot stops."""
+        embed = {
+            "title": "🔴 Crypto ML Trading Bot Stopped",
+            "description": f"The trading system has been shut down.",
+            "color": 0xFF6B6B,  # Light red
+            "timestamp": datetime.utcnow().isoformat(),
+            "fields": [
+                {"name": "Reason", "value": reason, "inline": False},
+            ],
+            "footer": {"text": "Crypto ML Trading Bot"}
+        }
+
+        payload = {
+            "username": "Crypto ML Trader",
+            "embeds": [embed]
+        }
+
+        return self._send_webhook(payload)
+
 
 class ReportGenerator:
     """Generate trading reports from portfolio and trade data."""
