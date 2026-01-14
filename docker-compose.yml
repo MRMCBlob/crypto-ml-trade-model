@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Main trading application
+  crypto-trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-ml-trader
+    volumes:
+      - ./data:/app/data
+      - ./models/saved:/app/models/saved
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=${TZ:-UTC}
+      # API Keys
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      # Trading Configuration
+      - TRADING_MODE=${TRADING_MODE:-paper}
+      - INITIAL_CAPITAL=${INITIAL_CAPITAL:-10000}
+      - MAX_POSITION_PCT=${MAX_POSITION_PCT:-0.20}
+      - MAX_TOTAL_EXPOSURE=${MAX_TOTAL_EXPOSURE:-0.80}
+      - RISK_PER_TRADE_PCT=${RISK_PER_TRADE_PCT:-0.02}
+      - MAX_DRAWDOWN_PCT=${MAX_DRAWDOWN_PCT:-0.15}
+      - MAX_DAILY_LOSS_PCT=${MAX_DAILY_LOSS_PCT:-0.05}
+      # Model Configuration
+      - PREDICTION_HORIZON=${PREDICTION_HORIZON:-7}
+      - SEQUENCE_LENGTH=${SEQUENCE_LENGTH:-30}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    command: python scripts/run_multi_coin_trading.py --continuous
+    restart: unless-stopped
+    networks:
+      - crypto-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - trading
+
+  # Data downloader service (runs periodically)
+  data-fetcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-data-fetcher
+    command: python scripts/download_multi_coin_data.py
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=${TZ:-UTC}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - crypto-net
+    profiles:
+      - data
+
+  # Model training service
+  model-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-model-trainer
+    command: python scripts/train_multi_coin_models.py
+    volumes:
+      - ./data:/app/data
+      - ./models/saved:/app/models/saved
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=${TZ:-UTC}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Model Configuration
+      - PREDICTION_HORIZON=${PREDICTION_HORIZON:-7}
+      - SEQUENCE_LENGTH=${SEQUENCE_LENGTH:-30}
+      - VALIDATION_SPLIT=${VALIDATION_SPLIT:-0.2}
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    networks:
+      - crypto-net
+    profiles:
+      - training
+
+  # Backtesting service
+  backtester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-backtester
+    command: python scripts/run_multi_coin_backtest.py
+    volumes:
+      - ./data:/app/data
+      - ./models/saved:/app/models/saved
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=${TZ:-UTC}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Trading Configuration for backtesting
+      - INITIAL_CAPITAL=${INITIAL_CAPITAL:-10000}
+      - MAX_POSITION_PCT=${MAX_POSITION_PCT:-0.20}
+      - MAX_TOTAL_EXPOSURE=${MAX_TOTAL_EXPOSURE:-0.80}
+      - MAX_DRAWDOWN_PCT=${MAX_DRAWDOWN_PCT:-0.15}
+    networks:
+      - crypto-net
+    profiles:
+      - backtest
+
+networks:
+  crypto-net:
+    driver: bridge
+
+volumes:
+  data:
+  models:
+  logs:
+  reports:
