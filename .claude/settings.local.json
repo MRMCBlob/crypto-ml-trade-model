@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Get-ChildItem -Path ''C:\\\\Users\\\\mrblo\\\\crypto-ml'' -Force -Recurse | Select-Object FullName, PSIsContainer\")",
+      "WebFetch(domain:www.coingecko.com)",
+      "WebFetch(domain:min-api.cryptocompare.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
