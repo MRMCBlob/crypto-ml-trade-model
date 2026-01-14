@@ -36,10 +36,18 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/data/raw /app/data/processed /app/models/saved /app/logs /app/reports
 
+# Copy and make entrypoint executable
+COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
+RUN chmod +x /app/scripts/entrypoint.sh
+
 # Create non-root user for security
 RUN useradd -m -u 1000 trader && \
     chown -R trader:trader /app
 USER trader
 
-# Default command
-CMD ["python", "scripts/run_multi_coin_trading.py"]
+# Health check
+HEALTHCHECK --interval=60s --timeout=10s --start-period=300s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
+# Default command - runs full pipeline (download, train, trade)
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
