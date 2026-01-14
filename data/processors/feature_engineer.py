@@ -1,7 +1,7 @@
 """Feature engineering for swing trading ML models."""
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
+import ta
 from typing import List, Optional
 
 from utils.logger import get_logger
@@ -69,37 +69,35 @@ class FeatureEngineer:
         """Add trend-following indicators (crucial for swing trading)."""
         logger.debug("Adding trend indicators...")
 
+        close = self.df["close"]
+        high = self.df["high"]
+        low = self.df["low"]
+
         # Simple Moving Averages - Multiple timeframes
         for period in [7, 14, 21, 50, 200]:
-            self.df[f"sma_{period}"] = ta.sma(self.df["close"], length=period)
+            self.df[f"sma_{period}"] = ta.trend.sma_indicator(close, window=period)
 
         # Exponential Moving Averages
         for period in [7, 14, 21, 50, 200]:
-            self.df[f"ema_{period}"] = ta.ema(self.df["close"], length=period)
+            self.df[f"ema_{period}"] = ta.trend.ema_indicator(close, window=period)
 
         # MACD - Primary trend indicator
-        macd = ta.macd(self.df["close"], fast=12, slow=26, signal=9)
-        if macd is not None:
-            self.df = pd.concat([self.df, macd], axis=1)
+        macd = ta.trend.MACD(close, window_slow=26, window_fast=12, window_sign=9)
+        self.df["MACD_12_26_9"] = macd.macd()
+        self.df["MACDh_12_26_9"] = macd.macd_diff()
+        self.df["MACDs_12_26_9"] = macd.macd_signal()
 
         # ADX - Average Directional Index (trend strength)
-        adx = ta.adx(self.df["high"], self.df["low"], self.df["close"], length=14)
-        if adx is not None:
-            self.df = pd.concat([self.df, adx], axis=1)
-
-        # Supertrend (good for swing entries)
-        supertrend = ta.supertrend(
-            self.df["high"], self.df["low"], self.df["close"],
-            length=10, multiplier=3.0
-        )
-        if supertrend is not None:
-            self.df = pd.concat([self.df, supertrend], axis=1)
+        adx = ta.trend.ADXIndicator(high, low, close, window=14)
+        self.df["ADX_14"] = adx.adx()
+        self.df["DMP_14"] = adx.adx_pos()
+        self.df["DMN_14"] = adx.adx_neg()
 
         # Price relative to moving averages
         if "sma_50" in self.df.columns:
-            self.df["close_to_sma_50"] = self.df["close"] / self.df["sma_50"]
+            self.df["close_to_sma_50"] = close / self.df["sma_50"]
         if "sma_200" in self.df.columns:
-            self.df["close_to_sma_200"] = self.df["close"] / self.df["sma_200"]
+            self.df["close_to_sma_200"] = close / self.df["sma_200"]
         if "sma_50" in self.df.columns and "sma_200" in self.df.columns:
             self.df["sma_50_to_200"] = self.df["sma_50"] / self.df["sma_200"]
 
@@ -111,83 +109,78 @@ class FeatureEngineer:
         """Add momentum oscillators."""
         logger.debug("Adding momentum indicators...")
 
+        close = self.df["close"]
+        high = self.df["high"]
+        low = self.df["low"]
+
         # RSI - Multiple timeframes
         for period in [7, 14, 21]:
-            rsi = ta.rsi(self.df["close"], length=period)
-            if rsi is not None:
-                self.df[f"rsi_{period}"] = rsi
+            self.df[f"rsi_{period}"] = ta.momentum.rsi(close, window=period)
 
         # Stochastic Oscillator
-        stoch = ta.stoch(self.df["high"], self.df["low"], self.df["close"])
-        if stoch is not None:
-            self.df = pd.concat([self.df, stoch], axis=1)
+        stoch = ta.momentum.StochasticOscillator(high, low, close)
+        self.df["STOCHk_14_3_3"] = stoch.stoch()
+        self.df["STOCHd_14_3_3"] = stoch.stoch_signal()
 
         # Williams %R
-        willr = ta.willr(self.df["high"], self.df["low"], self.df["close"])
-        if willr is not None:
-            self.df["willr"] = willr
+        self.df["willr"] = ta.momentum.williams_r(high, low, close)
 
         # CCI - Commodity Channel Index
-        cci = ta.cci(self.df["high"], self.df["low"], self.df["close"])
-        if cci is not None:
-            self.df["cci"] = cci
+        self.df["cci"] = ta.trend.cci(high, low, close)
 
         # Rate of Change
         for period in [7, 14]:
-            roc = ta.roc(self.df["close"], length=period)
-            if roc is not None:
-                self.df[f"roc_{period}"] = roc
-
-        # Momentum
-        for period in [7, 14]:
-            mom = ta.mom(self.df["close"], length=period)
-            if mom is not None:
-                self.df[f"mom_{period}"] = mom
+            self.df[f"roc_{period}"] = ta.momentum.roc(close, window=period)
 
         # Ultimate Oscillator
-        uo = ta.uo(self.df["high"], self.df["low"], self.df["close"])
-        if uo is not None:
-            self.df["uo"] = uo
+        self.df["uo"] = ta.momentum.ultimate_oscillator(high, low, close)
+
+        # TSI - True Strength Index
+        self.df["tsi"] = ta.momentum.tsi(close)
 
     def _add_volatility_indicators(self):
         """Add volatility measures (critical for position sizing)."""
         logger.debug("Adding volatility indicators...")
 
+        close = self.df["close"]
+        high = self.df["high"]
+        low = self.df["low"]
+
         # Bollinger Bands
-        bbands = ta.bbands(self.df["close"], length=20, std=2.0)
-        if bbands is not None:
-            self.df = pd.concat([self.df, bbands], axis=1)
+        bb = ta.volatility.BollingerBands(close, window=20, window_dev=2)
+        self.df["BBL_20_2.0"] = bb.bollinger_lband()
+        self.df["BBM_20_2.0"] = bb.bollinger_mavg()
+        self.df["BBU_20_2.0"] = bb.bollinger_hband()
+        self.df["BBB_20_2.0"] = bb.bollinger_wband()
+        self.df["BBP_20_2.0"] = bb.bollinger_pband()
 
         # ATR - Average True Range (for stop-loss calculation)
         for period in [14, 21]:
-            atr = ta.atr(self.df["high"], self.df["low"], self.df["close"], length=period)
-            if atr is not None:
-                self.df[f"atr_{period}"] = atr
+            self.df[f"atr_{period}"] = ta.volatility.average_true_range(high, low, close, window=period)
 
         # ATR as percentage of price
         if "atr_14" in self.df.columns:
-            self.df["atr_pct"] = self.df["atr_14"] / self.df["close"] * 100
+            self.df["atr_pct"] = self.df["atr_14"] / close * 100
 
         # Keltner Channels
-        kc = ta.kc(self.df["high"], self.df["low"], self.df["close"])
-        if kc is not None:
-            self.df = pd.concat([self.df, kc], axis=1)
+        kc = ta.volatility.KeltnerChannel(high, low, close)
+        self.df["KCLe_20_2"] = kc.keltner_channel_lband()
+        self.df["KCBe_20_2"] = kc.keltner_channel_mband()
+        self.df["KCUe_20_2"] = kc.keltner_channel_hband()
 
         # Historical Volatility (annualized)
-        returns = self.df["close"].pct_change()
+        returns = close.pct_change()
         self.df["hvol_14"] = returns.rolling(14).std() * np.sqrt(365)
         self.df["hvol_30"] = returns.rolling(30).std() * np.sqrt(365)
 
         # Donchian Channels (breakout detection)
-        donchian = ta.donchian(self.df["high"], self.df["low"],
-                               lower_length=20, upper_length=20)
-        if donchian is not None:
-            self.df = pd.concat([self.df, donchian], axis=1)
+        dc = ta.volatility.DonchianChannel(high, low, close, window=20)
+        self.df["DCL_20_20"] = dc.donchian_channel_lband()
+        self.df["DCM_20_20"] = dc.donchian_channel_mband()
+        self.df["DCU_20_20"] = dc.donchian_channel_hband()
 
-        # True Range
-        tr = ta.true_range(self.df["high"], self.df["low"], self.df["close"])
-        if tr is not None:
-            self.df["true_range"] = tr
+        # Ulcer Index
+        self.df["ulcer_index"] = ta.volatility.ulcer_index(close)
 
     def _add_volume_indicators(self):
         """Add volume-based indicators."""
@@ -197,79 +190,79 @@ class FeatureEngineer:
             logger.warning("Volume data not available, skipping volume indicators")
             return
 
+        close = self.df["close"]
+        high = self.df["high"]
+        low = self.df["low"]
+        volume = self.df["volume"]
+
         # OBV - On-Balance Volume
-        obv = ta.obv(self.df["close"], self.df["volume"])
-        if obv is not None:
-            self.df["obv"] = obv
+        self.df["obv"] = ta.volume.on_balance_volume(close, volume)
 
         # Volume SMA
-        self.df["volume_sma_20"] = ta.sma(self.df["volume"], length=20)
+        self.df["volume_sma_20"] = ta.trend.sma_indicator(volume, window=20)
 
         # Volume ratio
         if "volume_sma_20" in self.df.columns:
-            self.df["volume_ratio"] = self.df["volume"] / self.df["volume_sma_20"]
+            self.df["volume_ratio"] = volume / self.df["volume_sma_20"]
 
         # MFI - Money Flow Index
-        mfi = ta.mfi(self.df["high"], self.df["low"], self.df["close"], self.df["volume"])
-        if mfi is not None:
-            self.df["mfi"] = mfi
+        self.df["mfi"] = ta.volume.money_flow_index(high, low, close, volume)
 
         # CMF - Chaikin Money Flow
-        cmf = ta.cmf(self.df["high"], self.df["low"], self.df["close"], self.df["volume"])
-        if cmf is not None:
-            self.df["cmf"] = cmf
+        self.df["cmf"] = ta.volume.chaikin_money_flow(high, low, close, volume)
 
         # AD - Accumulation/Distribution
-        ad = ta.ad(self.df["high"], self.df["low"], self.df["close"], self.df["volume"])
-        if ad is not None:
-            self.df["ad"] = ad
+        self.df["ad"] = ta.volume.acc_dist_index(high, low, close, volume)
+
+        # Force Index
+        self.df["force_index"] = ta.volume.force_index(close, volume)
 
         # VWAP (approximation for daily)
-        vwap = ta.vwap(self.df["high"], self.df["low"], self.df["close"], self.df["volume"])
-        if vwap is not None:
-            self.df["vwap"] = vwap
+        self.df["vwap"] = ta.volume.volume_weighted_average_price(high, low, close, volume)
 
     def _add_price_patterns(self):
         """Add price pattern features."""
         logger.debug("Adding price patterns...")
 
+        close = self.df["close"]
+
         # Returns at various horizons
         for period in [1, 3, 7, 14, 21]:
-            self.df[f"return_{period}d"] = self.df["close"].pct_change(period)
+            self.df[f"return_{period}d"] = close.pct_change(period)
 
         # Log returns (more normally distributed)
-        self.df["log_return_1d"] = np.log(self.df["close"] / self.df["close"].shift(1))
+        self.df["log_return_1d"] = np.log(close / close.shift(1))
 
         # High-Low spread (daily range)
-        self.df["hl_spread"] = (self.df["high"] - self.df["low"]) / self.df["close"]
+        self.df["hl_spread"] = (self.df["high"] - self.df["low"]) / close
 
         # Close position within day's range
         hl_range = self.df["high"] - self.df["low"]
         self.df["close_position"] = np.where(
             hl_range > 0,
-            (self.df["close"] - self.df["low"]) / hl_range,
+            (close - self.df["low"]) / hl_range,
             0.5
         )
 
         # Gap detection
-        self.df["gap_up"] = (self.df["open"] > self.df["close"].shift(1)).astype(int)
-        self.df["gap_down"] = (self.df["open"] < self.df["close"].shift(1)).astype(int)
-        self.df["gap_pct"] = (self.df["open"] - self.df["close"].shift(1)) / self.df["close"].shift(1)
+        self.df["gap_up"] = (self.df["open"] > close.shift(1)).astype(int)
+        self.df["gap_down"] = (self.df["open"] < close.shift(1)).astype(int)
+        self.df["gap_pct"] = (self.df["open"] - close.shift(1)) / close.shift(1)
 
         # Consecutive up/down days
-        self.df["up_day"] = (self.df["close"] > self.df["close"].shift(1)).astype(int)
+        self.df["up_day"] = (close > close.shift(1)).astype(int)
 
         # Rolling highs/lows
         self.df["rolling_high_20"] = self.df["high"].rolling(20).max()
         self.df["rolling_low_20"] = self.df["low"].rolling(20).min()
 
         # Distance from 20-day high/low
-        self.df["dist_from_high_20"] = (self.df["close"] - self.df["rolling_high_20"]) / self.df["rolling_high_20"]
-        self.df["dist_from_low_20"] = (self.df["close"] - self.df["rolling_low_20"]) / self.df["rolling_low_20"]
+        self.df["dist_from_high_20"] = (close - self.df["rolling_high_20"]) / self.df["rolling_high_20"]
+        self.df["dist_from_low_20"] = (close - self.df["rolling_low_20"]) / self.df["rolling_low_20"]
 
         # Price momentum (close vs close n days ago)
         for period in [5, 10, 20]:
-            self.df[f"price_momentum_{period}"] = self.df["close"] / self.df["close"].shift(period) - 1
+            self.df[f"price_momentum_{period}"] = close / close.shift(period) - 1
 
     def _add_temporal_features(self):
         """Add time-based features."""
@@ -304,10 +297,12 @@ class FeatureEngineer:
         """
         logger.debug(f"Adding target variables (horizon={prediction_horizon}d)...")
 
+        close = self.df["close"]
+
         # Regression targets: future returns
         for horizon in [1, 3, 7, 14]:
             self.df[f"target_return_{horizon}d"] = (
-                self.df["close"].shift(-horizon) / self.df["close"] - 1
+                close.shift(-horizon) / close - 1
             )
 
         # Classification targets: direction (up=1, down=0)

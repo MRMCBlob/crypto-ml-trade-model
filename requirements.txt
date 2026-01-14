@@ -11,7 +11,7 @@ xgboost>=2.0.0
 tensorflow>=2.15.0
 
 # Technical Analysis
-pandas-ta>=0.3.14b
+ta>=0.11.0
 
 # Data Fetching
 requests>=2.31.0
