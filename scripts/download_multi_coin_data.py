@@ -25,8 +25,13 @@ def main():
     # Initialize
     settings = get_settings()
     registry = get_coin_registry()
-    fetcher = CoinGeckoFetcher()
+    fetcher = CoinGeckoFetcher(api_key=settings.coingecko_api_key or None)
     db = TradingDatabase(settings.database_path)
+
+    if settings.coingecko_api_key:
+        logger.info("Using CoinGecko API key for higher rate limits")
+    else:
+        logger.warning("No API key - using free tier (slower, may hit rate limits)")
 
     # Get all tradeable coins
     coins = registry.get_all_tradeable_coins()
@@ -57,14 +62,15 @@ def main():
                 logger.warning(f"  No data received for {coin.symbol}")
                 failed.append(coin.symbol)
 
-            # Rate limiting - CoinGecko free tier is ~10-30 calls/min
-            # Use 6 second delay to stay well under limit
-            time.sleep(6)
+            # Rate limiting - CoinGecko free tier is ~10 calls/min
+            # With API key it's ~30 calls/min
+            delay = 3 if settings.coingecko_api_key else 8
+            time.sleep(delay)
 
         except Exception as e:
             logger.error(f"  Error fetching {coin.symbol}: {e}")
             failed.append(coin.symbol)
-            time.sleep(30)  # Much longer delay on error (likely rate limited)
+            time.sleep(60)  # Long delay on error (likely rate limited)
             continue
 
     # Print summary

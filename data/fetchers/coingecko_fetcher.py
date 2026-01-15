@@ -65,8 +65,8 @@ class CoinGeckoFetcher(BaseFetcher):
         # Assume it's already a CoinGecko ID
         return symbol.lower()
 
-    @rate_limit(calls=25, period=60)
-    @retry_on_failure(max_retries=3, delay=2.0)
+    @rate_limit(calls=8, period=60)  # Conservative limit for free tier
+    @retry_on_failure(max_retries=4, delay=5.0)
     def _make_request(self, endpoint: str, params: Dict[str, Any] = None) -> Dict:
         """Make API request with rate limiting and retries."""
         url = f"{self.BASE_URL}/{endpoint}"
@@ -81,10 +81,10 @@ class CoinGeckoFetcher(BaseFetcher):
         end_date: Optional[str] = None
     ) -> pd.DataFrame:
         """
-        Fetch OHLCV data from CoinGecko.
+        Fetch OHLCV data from CoinGecko using a single API call.
 
-        Note: CoinGecko's OHLC endpoint provides candles, not volume.
-        We fetch market_chart for price + volume data instead.
+        Uses market_chart endpoint which provides prices and volume.
+        Derives OHLC from daily price data.
 
         Args:
             symbol: Cryptocurrency symbol or CoinGecko ID
@@ -112,53 +112,49 @@ class CoinGeckoFetcher(BaseFetcher):
 
         logger.info(f"Fetching {days} days of data for {coin_id}")
 
-        # Fetch OHLC data (candles)
-        ohlc_data = self._make_request(
-            f"coins/{coin_id}/ohlc",
-            params={"vs_currency": "usd", "days": days}
-        )
-
-        # Parse OHLC data
-        df_ohlc = pd.DataFrame(
-            ohlc_data,
-            columns=["timestamp", "open", "high", "low", "close"]
-        )
-        df_ohlc["timestamp"] = pd.to_datetime(df_ohlc["timestamp"], unit="ms")
-        df_ohlc.set_index("timestamp", inplace=True)
-
-        # Fetch market chart for volume
+        # Single API call - market_chart has prices and volumes
         market_data = self._make_request(
             f"coins/{coin_id}/market_chart",
             params={"vs_currency": "usd", "days": days}
         )
 
+        # Parse price data
+        df_prices = pd.DataFrame(
+            market_data["prices"],
+            columns=["timestamp", "price"]
+        )
+        df_prices["timestamp"] = pd.to_datetime(df_prices["timestamp"], unit="ms")
+        df_prices.set_index("timestamp", inplace=True)
+
         # Parse volume data
-        if "total_volumes" in market_data:
-            df_vol = pd.DataFrame(
-                market_data["total_volumes"],
-                columns=["timestamp", "volume"]
-            )
+        df_vol = pd.DataFrame(
+            market_data.get("total_volumes", []),
+            columns=["timestamp", "volume"]
+        )
+        if len(df_vol) > 0:
             df_vol["timestamp"] = pd.to_datetime(df_vol["timestamp"], unit="ms")
             df_vol.set_index("timestamp", inplace=True)
 
-            # Resample volume to daily and merge
+        # Resample to daily OHLC
+        df_daily = df_prices.resample("D").agg({
+            "price": ["first", "max", "min", "last"]
+        })
+        df_daily.columns = ["open", "high", "low", "close"]
+
+        # Add volume
+        if len(df_vol) > 0:
             df_vol_daily = df_vol.resample("D").sum()
-            df_ohlc = df_ohlc.resample("D").agg({
-                "open": "first",
-                "high": "max",
-                "low": "min",
-                "close": "last"
-            })
-            df_ohlc = df_ohlc.join(df_vol_daily, how="left")
+            df_daily = df_daily.join(df_vol_daily, how="left")
         else:
-            df_ohlc["volume"] = 0
+            df_daily["volume"] = 0
 
         # Clean up
-        df_ohlc = df_ohlc.dropna(subset=["close"])
-        df_ohlc = df_ohlc.sort_index()
+        df_daily = df_daily.dropna(subset=["close"])
+        df_daily = df_daily.sort_index()
+        df_daily["volume"] = df_daily["volume"].fillna(0)
 
-        logger.info(f"Fetched {len(df_ohlc)} rows for {coin_id}")
-        return df_ohlc
+        logger.info(f"Fetched {len(df_daily)} rows for {coin_id}")
+        return df_daily
 
     def get_available_symbols(self) -> List[str]:
         """Get list of available cryptocurrencies."""
