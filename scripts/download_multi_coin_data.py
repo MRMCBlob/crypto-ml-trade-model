@@ -57,13 +57,14 @@ def main():
                 logger.warning(f"  No data received for {coin.symbol}")
                 failed.append(coin.symbol)
 
-            # Rate limiting - be nice to the free API
-            time.sleep(2)
+            # Rate limiting - CoinGecko free tier is ~10-30 calls/min
+            # Use 6 second delay to stay well under limit
+            time.sleep(6)
 
         except Exception as e:
             logger.error(f"  Error fetching {coin.symbol}: {e}")
             failed.append(coin.symbol)
-            time.sleep(5)  # Longer delay on error
+            time.sleep(30)  # Much longer delay on error (likely rate limited)
             continue
 
     # Print summary

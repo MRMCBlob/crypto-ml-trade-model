@@ -161,12 +161,17 @@ class TradingDatabase:
 
         with self.connection() as conn:
             for _, row in df_copy.iterrows():
+                # Convert pandas Timestamp to ISO format string for SQLite
+                timestamp = row["timestamp"]
+                if hasattr(timestamp, 'isoformat'):
+                    timestamp = timestamp.isoformat()
+
                 conn.execute("""
                     INSERT OR REPLACE INTO ohlcv
                     (symbol, timeframe, timestamp, open, high, low, close, volume)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    row["symbol"], row["timeframe"], row["timestamp"],
+                    row["symbol"], row["timeframe"], timestamp,
                     row["open"], row["high"], row["low"], row["close"], row["volume"]
                 ))
 
