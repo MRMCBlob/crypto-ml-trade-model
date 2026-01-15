@@ -34,7 +34,13 @@ services:
       - SEQUENCE_LENGTH=${SEQUENCE_LENGTH:-30}
       # Logging
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    command: python scripts/run_multi_coin_trading.py --continuous
+      # Force flags for container startup
+      - FORCE_DATA_DOWNLOAD=${FORCE_DATA_DOWNLOAD:-false}
+      - FORCE_MODEL_TRAINING=${FORCE_MODEL_TRAINING:-false}
+    # Uses Dockerfile ENTRYPOINT (entrypoint.sh) which handles:
+    # 1. Data download (if needed)
+    # 2. Model training (if needed)
+    # 3. Continuous trading
     restart: unless-stopped
     networks:
       - crypto-net
@@ -43,8 +49,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    profiles:
-      - trading
+    # No profiles - this is the main service that runs by default
 
   # Data downloader service (runs periodically)
   data-fetcher:
