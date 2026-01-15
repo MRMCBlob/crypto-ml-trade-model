@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.coin_registry import get_coin_registry, CoinCategory
+from config.settings import get_settings
 from data.fetchers.coingecko_fetcher import CoinGeckoFetcher
 from data.storage.database import TradingDatabase
 from utils.logger import setup_logger
@@ -22,9 +23,10 @@ def main():
     logger.info("=" * 60)
 
     # Initialize
+    settings = get_settings()
     registry = get_coin_registry()
     fetcher = CoinGeckoFetcher()
-    db = TradingDatabase("data/trading.db")
+    db = TradingDatabase(settings.database_path)
 
     # Get all tradeable coins
     coins = registry.get_all_tradeable_coins()

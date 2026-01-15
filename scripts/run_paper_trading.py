@@ -8,6 +8,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config.settings import get_settings
 from data.fetchers.coingecko_fetcher import CoinGeckoFetcher
 from data.storage.database import TradingDatabase
 from data.processors.feature_engineer import FeatureEngineer
@@ -145,8 +146,9 @@ def main():
     logger.info("=" * 60)
 
     # Initialize components
+    settings = get_settings()
     fetcher = CoinGeckoFetcher()
-    db = TradingDatabase("data/trading.db")
+    db = TradingDatabase(settings.database_path)
     trading_config = TradingConfig()
     model_config = ModelConfig()
 

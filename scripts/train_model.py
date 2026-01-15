@@ -6,6 +6,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config.settings import get_settings
 from data.storage.database import TradingDatabase
 from data.processors.feature_engineer import FeatureEngineer
 from models.hybrid_model import HybridModel
@@ -18,7 +19,8 @@ logger = setup_logger("train_model")
 def main():
     """Train hybrid model on historical data."""
     # Initialize
-    db = TradingDatabase("data/trading.db")
+    settings = get_settings()
+    db = TradingDatabase(settings.database_path)
     config = ModelConfig()
 
     # Load data

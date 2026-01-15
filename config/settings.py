@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     coingecko_api_key: str = Field(default="", alias="COINGECKO_API_KEY")
 
     # Database
-    database_path: str = Field(default="data/trading.db", alias="DATABASE_PATH")
+    database_path: str = Field(default="storage/trading.db", alias="DATABASE_PATH")
 
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

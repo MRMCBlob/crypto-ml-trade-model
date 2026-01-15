@@ -35,10 +35,10 @@ env
 .DS_Store
 Thumbs.db
 
-# Project specific - don't copy data/models to image
-data/*.db
-data/raw/*
-data/processed/*
+# Project specific - don't copy storage/models to image
+storage/*.db
+storage/raw/*
+storage/processed/*
 models/saved/*
 logs/*
 reports/*

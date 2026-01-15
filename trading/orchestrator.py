@@ -52,7 +52,7 @@ class MultiCoinTradingOrchestrator:
         self,
         trading_config: Optional[TradingConfig] = None,
         model_config: Optional[ModelConfig] = None,
-        db_path: str = "data/trading.db",
+        db_path: str = "storage/trading.db",
         models_dir: str = "models/saved",
         discord_webhook_url: Optional[str] = None
     ):

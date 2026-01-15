@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.coin_registry import get_coin_registry, CoinCategory
 from config.model_config import ModelConfig
+from config.settings import get_settings
 from data.storage.database import TradingDatabase
 from data.processors.feature_engineer import FeatureEngineer
 from models.hybrid_model import HybridModel
@@ -102,8 +103,9 @@ def main():
     logger.info("=" * 60)
 
     # Initialize
+    settings = get_settings()
     registry = get_coin_registry()
-    db = TradingDatabase("data/trading.db")
+    db = TradingDatabase(settings.database_path)
     config = ModelConfig()
     models_dir = Path("models/saved")
     models_dir.mkdir(parents=True, exist_ok=True)

@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: crypto-ml-trader
     volumes:
-      - ./data:/app/data
+      - ./storage:/app/storage
       - ./models/saved:/app/models/saved
       - ./logs:/app/logs
       - ./reports:/app/reports
@@ -21,6 +21,7 @@ services:
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       # Trading Configuration
+      - DATABASE_PATH=${DATABASE_PATH:-storage/trading.db}
       - TRADING_MODE=${TRADING_MODE:-paper}
       - INITIAL_CAPITAL=${INITIAL_CAPITAL:-10000}
       - MAX_POSITION_PCT=${MAX_POSITION_PCT:-0.20}
@@ -53,13 +54,14 @@ services:
     container_name: crypto-data-fetcher
     command: python scripts/download_multi_coin_data.py
     volumes:
-      - ./data:/app/data
+      - ./storage:/app/storage
       - ./logs:/app/logs
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app
       - TZ=${TZ:-UTC}
+      - DATABASE_PATH=${DATABASE_PATH:-storage/trading.db}
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -76,7 +78,7 @@ services:
     container_name: crypto-model-trainer
     command: python scripts/train_multi_coin_models.py
     volumes:
-      - ./data:/app/data
+      - ./storage:/app/storage
       - ./models/saved:/app/models/saved
       - ./logs:/app/logs
     env_file:
@@ -84,6 +86,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - TZ=${TZ:-UTC}
+      - DATABASE_PATH=${DATABASE_PATH:-storage/trading.db}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # Model Configuration
@@ -107,7 +110,7 @@ services:
     container_name: crypto-backtester
     command: python scripts/run_multi_coin_backtest.py
     volumes:
-      - ./data:/app/data
+      - ./storage:/app/storage
       - ./models/saved:/app/models/saved
       - ./logs:/app/logs
       - ./reports:/app/reports
@@ -116,6 +119,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - TZ=${TZ:-UTC}
+      - DATABASE_PATH=${DATABASE_PATH:-storage/trading.db}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # Trading Configuration for backtesting
@@ -133,7 +137,7 @@ networks:
     driver: bridge
 
 volumes:
-  data:
+  storage:
   models:
   logs:
   reports:

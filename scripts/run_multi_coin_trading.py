@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.coin_registry import get_coin_registry
 from config.trading_config import TradingConfig
 from config.model_config import ModelConfig
+from config.settings import get_settings
 from trading.orchestrator import MultiCoinTradingOrchestrator
 from utils.logger import setup_logger
 
@@ -90,6 +91,7 @@ def main():
     logger.info("=" * 70)
 
     # Show configuration
+    settings = get_settings()
     registry = get_coin_registry()
     trading_config = TradingConfig()
     model_config = ModelConfig()
@@ -120,7 +122,7 @@ def main():
     orchestrator = MultiCoinTradingOrchestrator(
         trading_config=trading_config,
         model_config=model_config,
-        db_path="data/trading.db",
+        db_path=settings.database_path,
         models_dir="models/saved",
         discord_webhook_url=discord_webhook
     )

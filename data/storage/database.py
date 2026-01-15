@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 class TradingDatabase:
     """SQLite database manager for trading data storage."""
 
-    def __init__(self, db_path: str = "data/trading.db"):
+    def __init__(self, db_path: str = "storage/trading.db"):
         """
         Initialize database connection.
 

@@ -33,8 +33,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/data/raw /app/data/processed /app/models/saved /app/logs /app/reports
+# Create necessary directories (storage is separate from data Python module)
+RUN mkdir -p /app/storage/raw /app/storage/processed /app/models/saved /app/logs /app/reports
 
 # Copy and make entrypoint executable
 COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh

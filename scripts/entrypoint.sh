@@ -7,10 +7,10 @@ echo "========================================"
 
 # Check if models exist
 MODELS_DIR="/app/models/saved"
-DATA_DIR="/app/data"
+STORAGE_DIR="/app/storage"
 
 # Step 1: Download data if not present or if forced
-if [ ! -f "$DATA_DIR/trading.db" ] || [ "$FORCE_DATA_DOWNLOAD" = "true" ]; then
+if [ ! -f "$STORAGE_DIR/trading.db" ] || [ "$FORCE_DATA_DOWNLOAD" = "true" ]; then
     echo ""
     echo "[1/3] Downloading historical data..."
     python scripts/download_multi_coin_data.py
