@@ -40,10 +40,8 @@ RUN mkdir -p /app/storage/raw /app/storage/processed /app/models/saved /app/logs
 COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
 RUN chmod +x /app/scripts/entrypoint.sh
 
-# Create non-root user for security
-RUN useradd -m -u 1000 trader && \
-    chown -R trader:trader /app
-USER trader
+# Note: Running as root for compatibility with bind-mounted volumes
+# Container isolation provides security boundary
 
 # Health check
 HEALTHCHECK --interval=60s --timeout=10s --start-period=300s --retries=3 \
